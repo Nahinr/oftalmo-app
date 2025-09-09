@@ -26,6 +26,8 @@ class PermissionResource extends Resource
     protected static ?string $model = Permission::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
+    protected static ?string $navigationGroup = 'Administración';
+    protected static ?string $navigationLabel = 'Permisos';
 
     public static function form(Form $form): Form
     {
