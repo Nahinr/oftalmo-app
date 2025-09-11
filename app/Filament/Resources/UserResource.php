@@ -92,7 +92,7 @@ class UserResource extends Resource
                     Tables\Columns\TextColumn::make('email')->searchable()->sortable(),
                     Tables\Columns\TextColumn::make('roles.name')->label('Roles')->badge()->separator(', '),
                     Tables\Columns\IconColumn::make('active')->boolean()->label('Activo'),
-                    Tables\Columns\TextColumn::make('created_at')->dateTime()->label('Creado')->sortable(),
+                    
             ])
             ->filters([
                 //
