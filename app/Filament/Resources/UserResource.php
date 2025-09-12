@@ -91,7 +91,18 @@ class UserResource extends Resource
                 Tables\Columns\TextColumn::make('last_name')->label('Apellido')->searchable()->sortable(),
                     Tables\Columns\TextColumn::make('email')->searchable()->sortable(),
                     Tables\Columns\TextColumn::make('roles.name')->label('Roles')->badge()->separator(', '),
-                    Tables\Columns\IconColumn::make('active')->boolean()->label('Activo'),
+                    Tables\Columns\IconColumn::make('status')
+                        ->label('Estado')
+                        ->icon(fn (string $state): string => match ($state) {
+                            'active' => 'heroicon-o-check-circle',
+                            'inactive' => 'heroicon-o-x-circle',
+                            default => 'heroicon-o-question-mark-circle',
+                        })
+                        ->color(fn (string $state): string => match ($state) {
+                            'active' => 'success',
+                            'inactive' => 'danger',
+                            default => 'gray',
+                        }),
                     
             ])
             ->filters([
