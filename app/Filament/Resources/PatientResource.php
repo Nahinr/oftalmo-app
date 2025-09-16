@@ -3,6 +3,7 @@
 namespace App\Filament\Resources;
 
 use Closure;
+use Dom\Text;
 use Carbon\Carbon;
 use Filament\Forms;
 use Filament\Tables;
@@ -26,13 +27,15 @@ use Filament\Forms\Components\DatePicker;
 use Filament\Tables\Filters\SelectFilter;
 use Illuminate\Database\Eloquent\Builder;
 use Filament\Support\Facades\FilamentIcon;
+use Filament\Tables\Filters\TrashedFilter;
 use Filament\Tables\Actions\BulkActionGroup;
 use Filament\Tables\Actions\DeleteBulkAction;
 use App\Filament\Resources\PatientResource\Pages;
+use Illuminate\Database\Eloquent\SoftDeletingScope;
 use App\Filament\Resources\PatientResource\Pages\EditPatient;
 use App\Filament\Resources\PatientResource\Pages\ListPatients;
 use App\Filament\Resources\PatientResource\Pages\CreatePatient;
-use Dom\Text;
+use filament\Facades\Filament;
 
 class PatientResource extends Resource
 {
@@ -49,6 +52,13 @@ class PatientResource extends Resource
     public static function form(Forms\Form $form): Forms\Form
     {
         return $form->schema(self::formSchema());
+    }
+
+    public static function getEloquentQuery(): \Illuminate\Database\Eloquent\Builder
+    {
+        return parent::getEloquentQuery()->withoutGlobalScopes([
+            \Illuminate\Database\Eloquent\SoftDeletingScope::class,
+        ]);
     }
     
     public static function formSchema(): array
@@ -206,12 +216,14 @@ class PatientResource extends Resource
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
-
+                Tables\Filters\TrashedFilter::make()->label('Archivados'),
             ])
             ->actions([
-                Tables\Actions\ViewAction::make(),
-                Tables\Actions\EditAction::make(),
-                Tables\Actions\DeleteAction::make(),
+                Tables\Actions\ViewAction::make()->visible(fn () => Filament::auth()->user()?->can('patient.view')),
+                Tables\Actions\EditAction::make()->visible(fn () => Filament::auth()->user()?->can('patient.update')),
+                Tables\Actions\DeleteAction::make()->label('Archivar')->visible(fn () => Filament::auth()->user()?->can('patient.delete'))->requiresConfirmation(),
+                Tables\Actions\RestoreAction::make()->label('Restaurar')->visible(fn () => Filament::auth()->user()?->can('patient.restore')),
+                Tables\Actions\ForceDeleteAction::make()->label('Eliminar definitivamente')->visible(fn () => Filament::auth()->user()?->can('patient.forceDelete')),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([

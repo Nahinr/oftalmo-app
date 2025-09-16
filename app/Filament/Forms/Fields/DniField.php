@@ -2,9 +2,12 @@
 
 namespace App\Filament\Forms\Fields;
 
+use App\Support\Dni;
+use App\Models\Patient;
+use Filament\Forms\Get;
 use App\Rules\DniYearInRange;
 use App\Rules\UniqueDniDigits;
-use App\Support\Dni;
+use Illuminate\Validation\Rule;
 use Filament\Forms\Components\TextInput;
 
 class DniField
@@ -25,9 +28,12 @@ class DniField
             ->dehydrateStateUsing(fn($state) => Dni::onlyDigits($state))
             ->rule('regex:/^\d{4}-\d{4}-\d{5}$/')
             ->rule(new DniYearInRange())
-            ->rule(function () {
-                $currentId = request()->route('record');
-                return new UniqueDniDigits($currentId ? (int) $currentId : null);
+            ->rule(function (Get $get, ?Patient $record) {
+                $currentId = $record?->getKey(); // Filament pasa el modelo actual en edición
+                $digits = Dni::onlyDigits($get('dni')); // comparamos contra lo que se guardará
+                return Rule::unique('patients', 'dni')
+                    ->ignore($currentId)               // ignora el registro en edición
+                    ->where(fn ($q) => $q->where('dni', $digits));
             });
     }
 }

@@ -20,15 +20,25 @@ class RolesAndPermissionsSeeder extends Seeder
 
         // 1) Lista de permisos base del sistema
         $perms = [
-            // Gestión de usuarios y roles
+            // Usuarios / Roles
             'user.view','user.create','user.update','user.delete',
             'role.view','role.create','role.update','role.delete',
             'permission.view',
 
-            // Gestión clínica (ajústalos según tus módulos)
+            // Pacientes
             'patient.view','patient.create','patient.update','patient.delete',
+            'patient.restore',          // 👈 nuevo
+            'patient.forceDelete',      // 👈 opcional, SOLO super admin
+
+            // Citas (si aplica)
             'appointment.view','appointment.create','appointment.update','appointment.delete',
+            'appointment.restore',
+            'appointment.forceDelete',
+
+            // Historial, etc. (igual patrón)
             'history.view','history.create','history.update','history.delete',
+            'history.restore',
+            'history.forceDelete',
         ];
 
         foreach ($perms as $p) {
@@ -44,9 +54,10 @@ class RolesAndPermissionsSeeder extends Seeder
         $admin->syncPermissions(Permission::all());
 
         $doctor->syncPermissions([
-            'patient.view','patient.update',
+            'patient.view','patient.update','patient.view','patient.create',
             'appointment.view','appointment.create','appointment.update',
             'history.view','history.create','history.update',
+            'user.view','user.create','user.delete',
         ]);
 
         $recept->syncPermissions([

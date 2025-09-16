@@ -5,15 +5,22 @@ namespace App\Filament\Resources;
 use Filament\Forms;
 use App\Models\User;
 use Filament\Tables;
+use Filament\Forms\Get;
+use Filament\Forms\Set;
 use Filament\Forms\Form;
 use Filament\Tables\Table;
+use Filament\Facades\Filament;
 use Filament\Resources\Resource;
-use Filament\Forms\Components\Grid as FormGrid;
+use Illuminate\Support\Facades\Auth;
+use Filament\Forms\Components\Select;
+use Filament\Notifications\Notification;
 use App\Filament\Forms\Fields\PhoneField;
 use Illuminate\Database\Eloquent\Builder;
 use App\Filament\Resources\UserResource\Pages;
+use Filament\Forms\Components\Grid as FormGrid;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
 use App\Filament\Resources\UserResource\RelationManagers;
+Use Spatie\Permission\Models\Role;
 
 class UserResource extends Resource
 {
@@ -82,16 +89,66 @@ class UserResource extends Resource
                                     ->native(false),
                  ])->columns(3),
 
-                 Forms\Components\Section::make('Roles')
+                    Forms\Components\Section::make('Roles')
                         ->schema([
-                            Forms\Components\Select::make('roles')
-                                ->label('Asignar role')
+                            Select::make('roles')
+                                ->label('Asignar rol')
                                 ->relationship('roles', 'name') // Spatie HasRoles
                                 ->multiple()
                                 ->preload()
-                                ->searchable(),
+                                ->searchable()
+                                ->live() // ← para que afterStateUpdated dispare al quitar el chip
+                                // 1) Deshabilita elegir "Administrator" en el desplegable si te editas a ti mismo
+                                ->disableOptionWhen(function (string $value, $state, callable $get) {
+                                    $record = $get('id') ? User::find($get('id')) : null;
+                                    $roleName = Role::query()->whereKey($value)->value('name'); // $value es ID
+
+                                    return $roleName === 'Administrator'
+                                        && $record
+                                        && $record->id === Filament::auth()->id();
+                                })
+                                // 2) Si intentan quitar el chip de "Administrator", lo volvemos a poner
+                                ->afterStateUpdated(function ($state, Set $set, Get $get) {
+                                    // $state es array de IDs (o null)
+                                    $record = $get('id') ? User::find($get('id')) : null;
+                                    if (! $record) return;
+
+                                    $adminRoleId = Role::query()->where('name', 'Administrator')->value('id');
+
+                                    // Si me edito a mí mismo, no me puedo quitar "Administrator"
+                                    if ($record->id === Filament::auth()->id()) {
+                                        if (is_array($state) && ! in_array($adminRoleId, $state, true)) {
+                                            $state[] = $adminRoleId;
+                                            $set('roles', array_values(array_unique($state)));
+                                            Notification::make()
+                                                ->title('No puedes quitarte tu propio rol "Administrator".')
+                                                ->danger()
+                                                ->send();
+                                            return;
+                                        }
+                                    }
+
+                                    // (Opcional) Bloquea quitar "Administrator" al ÚNICO admin ACTIVO
+                                    // Si este usuario tenía Admin y el nuevo estado lo elimina:
+                                    $teniaAdmin = $record->hasRole('Administrator');
+                                    $tieneAdminAhora = is_array($state) && in_array($adminRoleId, $state, true);
+
+                                    if ($teniaAdmin && ! $tieneAdminAhora) {
+                                        $adminsActivos = User::role('Administrator')->where('status', 'active')->count();
+                                        if ($adminsActivos <= 1) {
+                                            // Reponerlo y avisar
+                                            $state = is_array($state) ? $state : [];
+                                            $state[] = $adminRoleId;
+                                            $set('roles', array_values(array_unique($state)));
+                                            Notification::make()
+                                                ->title('No puedes quitar el rol "Administrator" del único Administrador activo.')
+                                                ->danger()
+                                                ->send();
+                                        }
+                                    }
+                                })
                         ]),
-            ])->columns(1);
+             ])->columns(1);
     }
 
     public static function table(Table $table): Table
@@ -120,12 +177,59 @@ class UserResource extends Resource
                 //
             ])
             ->actions([
-                Tables\Actions\EditAction::make(),
-                Tables\Actions\DeleteAction::make(),
+                Tables\Actions\ViewAction::make()
+                    ->visible(fn () => Filament::auth()->user()?->can('user.view')),
+
+                Tables\Actions\EditAction::make()
+                    ->visible(fn () => Filament::auth()->user()?->can('user.update')),
+
+                Tables\Actions\Action::make('inactivate')
+                    ->label('Inactivar')
+                    ->icon('heroicon-o-no-symbol')
+                    ->color('danger')
+                    ->visible(fn (User $record) =>
+                        $record->status === 'active' &&
+                        Filament::auth()->user()?->can('user.update')
+                    )
+                    ->requiresConfirmation()
+                    ->action(function (User $record) {
+                        // 1) Bloquea auto-inactivarse
+                        if (Auth::id() === $record->id) {
+                            Notification::make()->title('No puedes inactivarte a ti mismo.')->danger()->send();
+                            return;
+                        }
+
+                        // 2) Bloquea inactivar al ÚNICO admin activo
+                        $adminsActivos = User::role('Administrator')->where('status', 'active')->count();
+                        if ($record->hasRole('Administrator') && $adminsActivos <= 1) {
+                            Notification::make()->title('No puedes inactivar al único Administrador activo.')->danger()->send();
+                            return;
+                        }
+
+                        // 3) Ok, inactivar
+                        $record->update(['status' => 'inactive']);
+                        Notification::make()->title('Usuario inactivado.')->success()->send();
+                    }),
+
+                    // Activar (solo si está inactivo)
+                    Tables\Actions\Action::make('activate')
+                        ->label('Activar')
+                        ->icon('heroicon-o-check-circle')
+                        ->color('success')
+                        ->visible(fn (User $record) =>
+                            $record->status === 'inactive' &&
+                            Filament::auth()->user()?->can('user.update')
+                        )
+                        ->requiresConfirmation()
+                        ->action(function (User $record) {
+                            $record->update(['status' => 'active']);
+                            Notification::make()->title('Usuario activado.')->success()->send();
+                        }),
+
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
+            
                 ]),
             ]);
     }
