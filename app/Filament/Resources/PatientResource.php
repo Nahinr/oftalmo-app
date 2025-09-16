@@ -35,7 +35,7 @@ use Illuminate\Database\Eloquent\SoftDeletingScope;
 use App\Filament\Resources\PatientResource\Pages\EditPatient;
 use App\Filament\Resources\PatientResource\Pages\ListPatients;
 use App\Filament\Resources\PatientResource\Pages\CreatePatient;
-use filament\Facades\Filament;
+use Filament\Facades\Filament;
 
 class PatientResource extends Resource
 {
@@ -54,11 +54,12 @@ class PatientResource extends Resource
         return $form->schema(self::formSchema());
     }
 
-    public static function getEloquentQuery(): \Illuminate\Database\Eloquent\Builder
+    public static function getEloquentQuery(): Builder
     {
-        return parent::getEloquentQuery()->withoutGlobalScopes([
-            \Illuminate\Database\Eloquent\SoftDeletingScope::class,
-        ]);
+        return parent::getEloquentQuery()
+            ->withoutGlobalScopes([SoftDeletingScope::class])
+            ->with('contacts');          // evita N+1
+                
     }
     
     public static function formSchema(): array
@@ -87,6 +88,16 @@ class PatientResource extends Resource
 
             return trim(implode(' ', $parts));
         };
+
+        $isMinor = function (?string $date): bool {
+            if (!$date) return false;
+            try {
+                return \Carbon\Carbon::parse($date)->age < 18;
+            } catch (\Throwable $e) {
+                return false;
+            }
+        };
+
         return [
             Section::make('Datos del paciente')
                 ->schema([
@@ -103,9 +114,8 @@ class PatientResource extends Resource
                             ->maxLength(100)
                             ->columnSpan(6),
 
-                        // DNI con formato y validación personalizada
                         DniField::make()->columnSpan(6),
-                        
+
                         ...PhoneField::schema(),
 
                         Select::make('sex')
@@ -135,11 +145,10 @@ class PatientResource extends Resource
                             })
                             ->columnSpan(4),
 
-
                         TextInput::make('age')
                             ->label('Edad')
                             ->disabled()
-                            ->dehydrated(false) // no se guarda en BD
+                            ->dehydrated(false)
                             ->columnSpan(4),
 
                         TextInput::make('occupation')
@@ -153,8 +162,114 @@ class PatientResource extends Resource
                             ->columnSpan(6),
                     ]),
                 ])->compact(),
+
+            // Toggle (solo adultos)
+            \Filament\Forms\Components\Toggle::make('has_guardian')
+                ->label('Tiene encargado/tutor')
+                ->helperText('Actívalo si el adulto depende de un responsable')
+                ->inline(false)
+                ->default(false)
+                ->dehydrated(false)
+                ->live()
+                ->visible(function (Get $get) use ($isMinor) {
+                    $birth = $get('birth_date');
+                    return $birth ? !$isMinor($birth) : false;
+                }),
+
+            // Bloque Encargado/Tutor
+            Section::make('Encargado / Tutor')
+                ->description('Datos del responsable del paciente ')
+                ->schema([
+                    \Filament\Forms\Components\Repeater::make('contacts')
+                        ->relationship('contacts')
+                        ->label('Lista de encargados')
+                        ->minItems(function (Get $get) use ($isMinor) {
+                                $birth  = $get('birth_date');
+                                $toggle = (bool) $get('has_guardian');
+
+                                // Si es obligatorio: exactamente 1
+                                return ($birth && $isMinor($birth)) || $toggle ? 1 : 0;
+                            })
+                            ->maxItems(1) // 👈 nunca más de 1
+                            ->defaultItems(function (Get $get) use ($isMinor) {
+                                $birth  = $get('birth_date');
+                                $toggle = (bool) $get('has_guardian');
+                                return ($birth && $isMinor($birth)) || $toggle ? 1 : 0;
+                            })
+                        ->addActionLabel('Añadir encargado')
+                        ->schema([
+                            Grid::make(12)->schema([
+                                TextInput::make('first_name')
+                                    ->label('Nombre')
+                                    ->required()
+                                    ->maxLength(100)
+                                    ->columnSpan(6),
+
+                                TextInput::make('last_name')
+                                    ->label('Apellido')
+                                    ->required()
+                                    ->maxLength(100)
+                                    ->columnSpan(6),
+
+                                Select::make('relationship')
+                                    ->label('Parentesco')
+                                    ->options([
+                                        'Mother' => 'Madre',
+                                        'Father' => 'Padre',
+                                        'Guardian' => 'Tutor/Encargado',
+                                        'Spouse' => 'Cónyuge',
+                                        'Relative' => 'Familiar',
+                                        'Other' => 'Otro',
+                                    ])
+                                    ->native(false)
+                                    ->columnSpan(4),
+
+                                // Dentro del Grid del Repeater (en la sección Encargado/Tutor):
+                                ... \App\Filament\Forms\Fields\PhoneField::schema(
+                                    countryField: 'guardian_phone_country',   // efímero, NO BD
+                                    nationalField: 'guardian_phone_national', // efímero, NO BD
+                                    e164Field: 'phone',                       // este SÍ es el de BD (contacts.phone)
+                                    countrySpan: 2,
+                                    numberSpan: 6
+                                ),
+
+                                \Filament\Forms\Components\Textarea::make('notes')
+                                    ->label('Notas')
+                                    ->rows(2)
+                                    ->columnSpan(12),
+                            ]),
+                        ])
+                        ->columns(1)
+                        ->collapsible()
+                        ->itemLabel(fn (array $state): ?string =>
+                            trim(($state['first_name'] ?? '') . ' ' . ($state['last_name'] ?? '')) ?: 'Encargado'
+                        )
+                        ->visible(function (Get $get) use ($isMinor) {
+                            $birth = $get('birth_date');
+                            $toggle = (bool) $get('has_guardian');
+                            return ($birth && $isMinor($birth)) || $toggle;
+                        })
+                        ->minItems(function (Get $get) use ($isMinor) {
+                            $birth = $get('birth_date');
+                            $toggle = (bool) $get('has_guardian');
+                            return ($birth && $isMinor($birth)) || $toggle ? 1 : 0;
+                        })
+                        ->defaultItems(function (Get $get) use ($isMinor) {
+                            $birth = $get('birth_date');
+                            $toggle = (bool) $get('has_guardian');
+                            return ($birth && $isMinor($birth)) || $toggle ? 1 : 0;
+                        }),
+                ])
+                ->columns(1)
+                ->columnSpanFull()
+                ->visible(function (Get $get) use ($isMinor) {
+                    $birth = $get('birth_date');
+                    $toggle = (bool) $get('has_guardian');
+                    return ($birth && $isMinor($birth)) || $toggle;
+                }),
         ];
     }
+
 
     public static function table(Tables\Table $table): Tables\Table
     {
@@ -168,7 +283,6 @@ class PatientResource extends Resource
                 TextColumn::make('full_name')
                     ->label('Paciente')
                     ->searchable(['first_name', 'last_name'])
-                    ->sortable()
                     ->wrap(),
 
                 TextColumn::make('dni')
@@ -179,7 +293,6 @@ class PatientResource extends Resource
 
                 TextColumn::make('sex')
                     ->label('Sexo')
-                    ->sortable()
                     ->formatStateUsing(fn ($state) => match ($state) {
                         'M' => 'Masculino',
                         'F' => 'Femenino',
@@ -196,12 +309,18 @@ class PatientResource extends Resource
                 TextColumn::make('age')
                     ->label('Edad')
                     ->getStateUsing(fn (Patient $record) => $record->birth_date ? Carbon::parse($record->birth_date)->age : null)
-                    ->sortable()
                     ->toggleable(),
 
                 TextColumn::make('phone')
                     ->label('Teléfono')
                     ->searchable()
+                    ->toggleable(),
+                
+                TextColumn::make('contact_phone')
+                    ->label('Teléfono contacto')
+                    ->getStateUsing(fn (Patient $r) => optional($r->contacts->first())->phone)
+                    ->badge()
+                    ->color('info')
                     ->toggleable(),
 
                 TextColumn::make('occupation')

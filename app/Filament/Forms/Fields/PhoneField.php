@@ -37,8 +37,8 @@ class PhoneField
 
             TextInput::make($nationalField)
                 ->label('Teléfono')
-                ->placeholder('####-####')
-                ->mask(fn (Get $get) => Phone::mask($get))
+                ->placeholder(fn (Get $get) => Phone::mask($get, $countryField))
+                ->mask(fn (Get $get) => Phone::mask($get, $countryField))
                 ->live()
                 ->dehydrated(false)
                 ->rule(function (Get $get) use ($countryField) {
@@ -54,7 +54,7 @@ class PhoneField
                 ->columnSpan($numberSpan),
 
             Hidden::make($e164Field)
-                ->dehydrateStateUsing(fn (Get $get) => Phone::composeE164($get)),
+                ->dehydrateStateUsing(fn (Get $get) => Phone::composeE164($get, $countryField, $nationalField)),
         ];
     }
 }

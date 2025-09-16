@@ -41,4 +41,11 @@ class Patient extends Model
                 : $value,
         );
     }
+
+    public function contacts()
+    {
+        return $this->hasMany(Contact::class);
+    }
+
+    
 }

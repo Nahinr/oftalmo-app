@@ -13,17 +13,21 @@ class Phone
             ->all();
     }
 
-    public static function mask(Get $get): string
+    public static function mask(Get $get, string $countryField = 'phone_country'): string
     {
-        $iso = $get('phone_country') ?: config('phone.default_iso');
+        $iso = $get($countryField) ?: config('phone.default_iso');
         return config("phone.countries.$iso.mask", '9999-9999');
     }
 
-    public static function composeE164(Get $get): ?string
-    {
-        $iso = $get('phone_country') ?: config('phone.default_iso');
+    // 👇 ahora acepta los nombres de campos de país y nacional
+    public static function composeE164(
+        Get $get,
+        string $countryField = 'phone_country',
+        string $nationalField = 'phone_national'
+    ): ?string {
+        $iso = $get($countryField) ?: config('phone.default_iso');
         $cc  = config("phone.countries.$iso.cc");
-        $digits = preg_replace('/\D/', '', (string) $get('phone_national'));
+        $digits = preg_replace('/\D/', '', (string) $get($nationalField));
         return $digits ? ('+' . $cc . $digits) : null;
     }
 
