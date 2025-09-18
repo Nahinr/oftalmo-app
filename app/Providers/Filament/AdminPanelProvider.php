@@ -45,6 +45,8 @@ class AdminPanelProvider extends PanelProvider
                     ->locale('es')                       
                     ->timezone('America/Tegucigalpa')    
                     ->plugins(['dayGrid', 'timeGrid', 'list'])
+                    ->selectable()
+                    ->editable()
             )
             ->widgets([
 
@@ -62,6 +64,8 @@ class AdminPanelProvider extends PanelProvider
             ])
             ->authMiddleware([
                 Authenticate::class,
-            ]);
+            ])
+            ->renderHook('panels::head.end', fn () => view('filament.custom-styles'));
+
     }
 }

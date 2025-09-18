@@ -18,21 +18,28 @@ class DniField
             ->label('DNI')
             ->mask('9999-9999-99999')
             ->placeholder('____-____-_____')
-            ->minLength(15)
-            ->maxLength(15)
+            ->nullable() // ← permite vacío desde el form
             ->formatStateUsing(function ($state) {
                 if (!$state) return null;
                 $digits = Dni::onlyDigits($state);
                 return strlen($digits) === 13 ? Dni::format13($digits) : $state;
             })
-            ->dehydrateStateUsing(fn($state) => Dni::onlyDigits($state))
-            ->rule('regex:/^\d{4}-\d{4}-\d{5}$/')
-            ->rule(new DniYearInRange())
+            ->dehydrateStateUsing(fn($state) => $state ? Dni::onlyDigits($state) : null) // ← NULL si vacío
+
+            // Reglas SOLO si hay valor:
+            ->rule(function (Get $get) {
+                return $get('dni') ? 'regex:/^\d{4}-\d{4}-\d{5}$/' : null;
+            })
+            ->rule(function (Get $get) {
+                return $get('dni') ? new DniYearInRange() : null;
+            })
             ->rule(function (Get $get, ?Patient $record) {
-                $currentId = $record?->getKey(); // Filament pasa el modelo actual en edición
-                $digits = Dni::onlyDigits($get('dni')); // comparamos contra lo que se guardará
+                $value = $get('dni');
+                if (!$value) return null; // sin DNI => sin unique
+                $currentId = $record?->getKey();
+                $digits = Dni::onlyDigits($value);
                 return Rule::unique('patients', 'dni')
-                    ->ignore($currentId)               // ignora el registro en edición
+                    ->ignore($currentId)
                     ->where(fn ($q) => $q->where('dni', $digits));
             });
     }

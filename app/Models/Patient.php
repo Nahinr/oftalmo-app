@@ -32,13 +32,15 @@ class Patient extends Model
     protected function dni(): Attribute
     {
         return Attribute::make(
-            //  al guardar: deja solo 13 dígitos
-            set: fn ($value) => preg_replace('/\D/', '', (string) $value),
+        set: function ($value) {
+            $digits = preg_replace('/\D/', '', (string) $value);
+            // Guarda NULL si queda vacío (permite múltiples NULL con índice UNIQUE)
+            return $digits !== '' ? $digits : null;
+        },
+        get: fn ($value) => ($value && strlen($value) === 13)
+            ? substr($value, 0, 4) . '-' . substr($value, 4, 4) . '-' . substr($value, 8, 5)
+            : $value,
 
-            //  al leer: lo muestra con guiones
-            get: fn ($value) => strlen($value) === 13
-                ? substr($value, 0, 4) . '-' . substr($value, 4, 4) . '-' . substr($value, 8, 5)
-                : $value,
         );
     }
 
