@@ -33,5 +33,9 @@ class EditPatient extends EditRecord
             $this->addError('contacts', 'Para adultos sin encargado no debe registrar contactos.');
         }
     }
+        protected function getRedirectUrl(): string
+    {
+        return static::getResource()::getUrl('index');
+    }
 
 }

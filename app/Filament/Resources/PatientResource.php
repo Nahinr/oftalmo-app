@@ -36,6 +36,7 @@ use App\Filament\Resources\PatientResource\Pages\EditPatient;
 use App\Filament\Resources\PatientResource\Pages\ListPatients;
 use App\Filament\Resources\PatientResource\Pages\CreatePatient;
 use Filament\Facades\Filament;
+use Filament\Forms\Components\Placeholder;
 
 class PatientResource extends Resource
 {
@@ -76,12 +77,15 @@ class PatientResource extends Resource
             $days   = $diff->d;
 
             $parts = [];
+
             if ($years > 0) {
                 $parts[] = $years . ' ' . ($years === 1 ? 'año' : 'años');
             }
-            if ($months > 0 || $years === 0) {
-                $parts[] = $months . ' ' . ($months === 1 ? 'mes' : 'meses');
-            }
+
+            // 👇 SIEMPRE muestra meses, aunque sea 0.
+            $parts[] = $months . ' ' . ($months === 1 ? 'mes' : 'meses');
+
+            // Días solo si aún no cumple un mes y no hay años.
             if ($years === 0 && $months === 0 && $days > 0) {
                 $parts[] = $days . ' ' . ($days === 1 ? 'día' : 'días');
             }
@@ -96,6 +100,18 @@ class PatientResource extends Resource
             } catch (\Throwable $e) {
                 return false;
             }
+        };
+
+        // 👉 Helpers *solo para visibilidad/obligatoriedad de Encargado*
+        $shouldRequireGuardian = function (Get $get) use ($isMinor): bool {
+            $birth  = $get('birth_date');
+            $toggle = (bool) $get('has_guardian');
+            return ($birth && $isMinor($birth)) || $toggle;
+        };
+
+        $hasContacts = function (Get $get): bool {
+            $contacts = $get('contacts');
+            return is_array($contacts) && count($contacts) > 0;
         };
 
         return [
@@ -134,21 +150,24 @@ class PatientResource extends Resource
                             ->format('Y-m-d')
                             ->closeOnDateSelection()
                             ->rule('before_or_equal:today')
-                            ->live()
+                            ->live() // imprescindible para disparar el afterStateUpdated en tiempo real
                             ->maxDate(now())
                             ->placeholder('dd/mm/aaaa')
-                            ->afterStateUpdated(function ($state, Set $set) use ($formatAge) {
-                                $set('age', $formatAge($state));
+                            ->columnSpan(4)
+                            // 👇 Calcula y pinta la edad al cambiar la fecha
+                            ->afterStateUpdated(function ($state, Forms\Set $set) use ($formatAge) {
+                                $set('age_display', $state ? $formatAge($state) : '');
                             })
-                            ->afterStateHydrated(function ($state, Set $set) use ($formatAge) {
-                                $set('age', $formatAge($state));
-                            })
-                            ->columnSpan(4),
+                            // 👇 Y también al cargar/editar registros existentes
+                            ->afterStateHydrated(function ($state, Forms\Set $set) use ($formatAge) {
+                                $set('age_display', $state ? $formatAge($state) : '');
+                            }),
 
-                        TextInput::make('age')
+                        TextInput::make('age_display')
                             ->label('Edad')
-                            ->disabled()
-                            ->dehydrated(false)
+                            ->dehydrated(false)          // no persiste en BD
+                            ->readOnly()                 // si no existe en tu versión, usa ->disabled()
+                            ->extraAttributes(['tabindex' => '-1'])
                             ->columnSpan(4),
 
                         TextInput::make('occupation')
@@ -183,19 +202,10 @@ class PatientResource extends Resource
                     \Filament\Forms\Components\Repeater::make('contacts')
                         ->relationship('contacts')
                         ->label('Lista de encargados')
-                        ->minItems(function (Get $get) use ($isMinor) {
-                                $birth  = $get('birth_date');
-                                $toggle = (bool) $get('has_guardian');
-
-                                // Si es obligatorio: exactamente 1
-                                return ($birth && $isMinor($birth)) || $toggle ? 1 : 0;
-                            })
-                            ->maxItems(1) // 👈 nunca más de 1
-                            ->defaultItems(function (Get $get) use ($isMinor) {
-                                $birth  = $get('birth_date');
-                                $toggle = (bool) $get('has_guardian');
-                                return ($birth && $isMinor($birth)) || $toggle ? 1 : 0;
-                            })
+                        // 👇 Obligatorio solo si es menor o si el toggle lo pide
+                        ->minItems(fn (Get $get) => $shouldRequireGuardian($get) ? 1 : 0)
+                        ->maxItems(1) // nunca más de 1
+                        ->defaultItems(fn (Get $get) => $shouldRequireGuardian($get) ? 1 : 0)
                         ->addActionLabel('Añadir encargado')
                         ->schema([
                             Grid::make(12)->schema([
@@ -244,29 +254,13 @@ class PatientResource extends Resource
                         ->itemLabel(fn (array $state): ?string =>
                             trim(($state['first_name'] ?? '') . ' ' . ($state['last_name'] ?? '')) ?: 'Encargado'
                         )
-                        ->visible(function (Get $get) use ($isMinor) {
-                            $birth = $get('birth_date');
-                            $toggle = (bool) $get('has_guardian');
-                            return ($birth && $isMinor($birth)) || $toggle;
-                        })
-                        ->minItems(function (Get $get) use ($isMinor) {
-                            $birth = $get('birth_date');
-                            $toggle = (bool) $get('has_guardian');
-                            return ($birth && $isMinor($birth)) || $toggle ? 1 : 0;
-                        })
-                        ->defaultItems(function (Get $get) use ($isMinor) {
-                            $birth = $get('birth_date');
-                            $toggle = (bool) $get('has_guardian');
-                            return ($birth && $isMinor($birth)) || $toggle ? 1 : 0;
-                        }),
+                        // 👇 Visibilidad: mostrar si es obligatorio O si ya hay contactos
+                        ->visible(fn (Get $get) => $shouldRequireGuardian($get) || $hasContacts($get)),
                 ])
                 ->columns(1)
                 ->columnSpanFull()
-                ->visible(function (Get $get) use ($isMinor) {
-                    $birth = $get('birth_date');
-                    $toggle = (bool) $get('has_guardian');
-                    return ($birth && $isMinor($birth)) || $toggle;
-                }),
+                // 👇 Misma lógica para la sección completa
+                ->visible(fn (Get $get) => $shouldRequireGuardian($get) || $hasContacts($get)),
         ];
     }
 
@@ -288,8 +282,7 @@ class PatientResource extends Resource
                 TextColumn::make('dni')
                     ->label('DNI')
                     ->searchable()
-                    ->copyable()
-                    ->badge(),
+                    ->copyable(),
 
                 TextColumn::make('sex')
                     ->label('Sexo')
@@ -308,19 +301,36 @@ class PatientResource extends Resource
                     
                 TextColumn::make('age')
                     ->label('Edad')
-                    ->getStateUsing(fn (Patient $record) => $record->birth_date ? Carbon::parse($record->birth_date)->age : null)
-                    ->toggleable(),
+                       ->getStateUsing(function (Patient $r) {
+                            if (!$r->birth_date) return null;
+                            $birth = \Carbon\Carbon::parse($r->birth_date);
+                            $now   = now();
+                            if ($birth->greaterThan($now)) return null;
+
+                            $diff = $birth->diff($now);
+                            $years  = $diff->y;
+                            $months = $diff->m;
+                            $days   = $diff->d;
+
+                            $parts = [];
+                            if ($years > 0)   $parts[] = $years .' '. ($years === 1 ? 'año' : 'años');
+                            if ($months > 0 || $years === 0) $parts[] = $months .' '. ($months === 1 ? 'mes' : 'meses');
+                            if ($years === 0 && $months === 0 && $days > 0) $parts[] = $days .' '. ($days === 1 ? 'día' : 'días');
+
+                            return trim(implode(' ', $parts));
+                        })
+                        ->toggleable(),
 
                 TextColumn::make('phone')
                     ->label('Teléfono')
+                    ->copyable()
                     ->searchable()
                     ->toggleable(),
                 
                 TextColumn::make('contact_phone')
                     ->label('Teléfono contacto')
                     ->getStateUsing(fn (Patient $r) => optional($r->contacts->first())->phone)
-                    ->badge()
-                    ->color('info')
+                    ->copyable()
                     ->toggleable(),
 
                 TextColumn::make('occupation')

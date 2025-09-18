@@ -26,5 +26,14 @@ protected function afterValidate(): void
             $this->addError('contacts', 'Para adultos sin encargado no debe registrar contactos.');
         }
     }
+        protected function getRedirectUrl(): string
+    {
+        return PatientResource::getUrl(); // /admin/patients
+    }
+
+    public static function canCreateAnother(): bool
+    {
+        return false;
+    }
 
 }
