@@ -1,9 +1,18 @@
 @import 'tailwindcss';
 
+/* Blades de tu app */
+@source '../../resources/views/**/*.blade.php';
+
+/* Archivos JS con Alpine/HTMX, etc. */
+@source '../../resources/js/**/*.js';
+
+/* Componentes Livewire/Filament donde a veces pones clases en strings PHP */
+@source '../../app/Livewire/**/*.php';
+@source '../../app/Filament/**/*.php';
+
+/* (Opcional) Paginación de Laravel si la personalizas con clases Tailwind */
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
-@source '../../storage/framework/views/*.php';
-@source '../**/*.blade.php';
-@source '../**/*.js';
+
 
 @theme {
     --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
@@ -27,3 +36,4 @@
 .fc .fc-daygrid-day {
   pointer-events: auto;
 }
+

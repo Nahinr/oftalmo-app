@@ -428,7 +428,7 @@ class CalendarWidget extends FullCalendarWidget
                     ->label('Fecha')
                     ->native(false)
                     ->format('Y-m-d')
-                    ->displayFormat('l, j F')
+                    ->displayFormat('l, j F, Y')
                     ->closeOnDateSelection(true)
                     ->reactive()
                     ->afterStateUpdated(function ($state, Set $set, Get $get) {

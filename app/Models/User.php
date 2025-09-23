@@ -51,4 +51,9 @@ class User extends Authenticatable
             'password' => 'hashed',
         ];
     }
+
+    public function getDisplayNameAttribute(): string
+    {
+        return trim(($this->name ?? '').' '.($this->last_name ?? '')) ?: ($this->email ?? '—');
+    }
 }
