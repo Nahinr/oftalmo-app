@@ -27,8 +27,14 @@ class RolesAndPermissionsSeeder extends Seeder
 
             // Pacientes
             'patient.view','patient.create','patient.update','patient.delete',
-            'patient.restore',          // 👈 nuevo
-            'patient.forceDelete',      // 👈 opcional, SOLO super admin
+            'patient.restore',       
+            'patient.forceDelete',
+            'patient.attachments.viewAny',
+            'patient.attachments.view',
+            'patient.attachments.create',
+            'patient.attachments.update',
+            'patient.attachments.delete',
+            'patient.attachments.download',      
 
             // Citas (si aplica)
             'appointment.view','appointment.create','appointment.update','appointment.delete',
@@ -54,10 +60,12 @@ class RolesAndPermissionsSeeder extends Seeder
         $admin->syncPermissions(Permission::all());
 
         $doctor->syncPermissions([
-            'patient.view','patient.update','patient.view','patient.create',
+            'patient.view','patient.update','patient.create',
             'appointment.view','appointment.create','appointment.update',
             'history.view','history.create','history.update',
-            'user.view','user.create','user.delete',
+            'user.view','user.create','user.delete', 'patient.attachments.viewAny',
+            'patient.attachments.view', 'patient.attachments.create', 'patient.attachments.update', 
+            'patient.attachments.download',
         ]);
 
         $recept->syncPermissions([

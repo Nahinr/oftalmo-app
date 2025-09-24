@@ -56,4 +56,6 @@ class User extends Authenticatable
     {
         return trim(($this->name ?? '').' '.($this->last_name ?? '')) ?: ($this->email ?? '—');
     }
+
+
 }

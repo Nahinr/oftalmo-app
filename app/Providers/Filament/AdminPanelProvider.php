@@ -20,7 +20,8 @@ use Filament\Http\Middleware\DispatchServingFilamentEvent;
 use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
 use Saade\FilamentFullCalendar\FilamentFullCalendarPlugin;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
-
+use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\AttachmentController;
 
 class AdminPanelProvider extends PanelProvider
 {
@@ -42,7 +43,16 @@ class AdminPanelProvider extends PanelProvider
             ->pages([
                 \App\Filament\Pages\Dashboard::class,
                 \App\Filament\Pages\Clinic\Expedientes::class,
-            ])            
+            ])
+            ->routes(function () {
+                Route::middleware(['signed'])->group(function () {
+                    Route::get('/attachments/{attachment}/view', [AttachmentController::class, 'inline'])
+                        ->name('attachments.view');
+
+                    Route::get('/attachments/{attachment}/download', [AttachmentController::class, 'download'])
+                        ->name('attachments.download');
+                });
+            })            
             ->plugin(
                 FilamentFullCalendarPlugin::make()
                     ->locale('es')                       

@@ -262,5 +262,15 @@ class Patient extends Model
             default => ucfirst((string) $this->sex), // fallback por si hay otro valor
         };
     }
+
+    public function attachments()
+    {
+        return $this->hasMany(\App\Models\Attachment::class);
+    }
+
+    public function attachmentBatches()
+    {
+        return $this->hasMany(\App\Models\AttachmentBatch::class);
+    }
     
 }
