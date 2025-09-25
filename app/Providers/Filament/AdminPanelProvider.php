@@ -22,6 +22,7 @@ use Saade\FilamentFullCalendar\FilamentFullCalendarPlugin;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AttachmentController;
+use App\Http\Controllers\PrescriptionPdfController;
 
 class AdminPanelProvider extends PanelProvider
 {
@@ -45,12 +46,15 @@ class AdminPanelProvider extends PanelProvider
                 \App\Filament\Pages\Clinic\Expedientes::class,
             ])
             ->routes(function () {
-                Route::middleware(['signed'])->group(function () {
+                Route::middleware(['signed','auth'])->group(function () {
                     Route::get('/attachments/{attachment}/view', [AttachmentController::class, 'inline'])
                         ->name('attachments.view');
 
                     Route::get('/attachments/{attachment}/download', [AttachmentController::class, 'download'])
                         ->name('attachments.download');
+
+                    Route::get('/prescriptions/{prescription}/pdf', [PrescriptionPdfController::class, 'show'])
+                         ->name('prescriptions.pdf');
                 });
             })            
             ->plugin(

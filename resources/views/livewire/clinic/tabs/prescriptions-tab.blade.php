@@ -83,6 +83,13 @@
                     </div>
 
                     <div class="flex gap-2">
+                        <x-filament::button size="sm" tag="a"
+                            href="{{ URL::signedRoute('filament.admin.prescriptions.pdf', ['prescription' => $rx->id]) }}"
+                            target="_blank"
+                            icon="heroicon-o-printer">
+                            Imprimir
+                        </x-filament::button>
+                        
                         <x-filament::button size="sm" wire:click="edit({{ $rx->id }})">
                             Editar
                         </x-filament::button>
