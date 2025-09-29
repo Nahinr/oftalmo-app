@@ -52,4 +52,9 @@ class Login extends BaseLogin
         session()->regenerate();
         return app(LoginResponse::class);
     }
+
+    public function getHeading(): string
+    {
+        return '';
+    }
 }
