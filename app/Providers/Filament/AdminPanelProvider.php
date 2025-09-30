@@ -5,30 +5,16 @@ namespace App\Providers\Filament;
 use Filament\Pages;
 use Filament\Panel;
 use Filament\Widgets;
-use Filament\Widgets;
 use Filament\PanelProvider;
 use Filament\Support\Colors\Color;
-use Filament\Http\Middleware\Authenticate;
-use Illuminate\Session\Middleware\StartSession;
 use Filament\Http\Middleware\Authenticate;
 use Illuminate\Session\Middleware\StartSession;
 use Illuminate\Cookie\Middleware\EncryptCookies;
 use App\Filament\Pages\Auth\Login as CustomLogin;
 use App\Filament\Widgets\CalendarWidget;
 use Filament\Http\Middleware\AuthenticateSession;
-use App\Filament\Pages\Auth\Login as CustomLogin;
-use App\Filament\Widgets\CalendarWidget;
-use Filament\Http\Middleware\AuthenticateSession;
 use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
-use Filament\Http\Middleware\DisableBladeIconComponents;
-use Filament\Http\Middleware\DispatchServingFilamentEvent;
-use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
-use Saade\FilamentFullCalendar\FilamentFullCalendarPlugin;
-use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
-use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\AttachmentController;
-use App\Http\Controllers\PrescriptionPdfController;
 use Filament\Http\Middleware\DisableBladeIconComponents;
 use Filament\Http\Middleware\DispatchServingFilamentEvent;
 use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
@@ -105,8 +91,6 @@ class AdminPanelProvider extends PanelProvider
             ])
             ->renderHook('panels::head.end', fn () => view('filament.custom-styles'));
 
-            ])
-            ->renderHook('panels::head.end', fn () => view('filament.custom-styles'));
 
     }
 }
