@@ -5,16 +5,30 @@ namespace App\Providers\Filament;
 use Filament\Pages;
 use Filament\Panel;
 use Filament\Widgets;
+use Filament\Widgets;
 use Filament\PanelProvider;
 use Filament\Support\Colors\Color;
+use Filament\Http\Middleware\Authenticate;
+use Illuminate\Session\Middleware\StartSession;
 use Filament\Http\Middleware\Authenticate;
 use Illuminate\Session\Middleware\StartSession;
 use Illuminate\Cookie\Middleware\EncryptCookies;
 use App\Filament\Pages\Auth\Login as CustomLogin;
 use App\Filament\Widgets\CalendarWidget;
 use Filament\Http\Middleware\AuthenticateSession;
+use App\Filament\Pages\Auth\Login as CustomLogin;
+use App\Filament\Widgets\CalendarWidget;
+use Filament\Http\Middleware\AuthenticateSession;
 use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
+use Filament\Http\Middleware\DisableBladeIconComponents;
+use Filament\Http\Middleware\DispatchServingFilamentEvent;
+use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
+use Saade\FilamentFullCalendar\FilamentFullCalendarPlugin;
+use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
+use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\AttachmentController;
+use App\Http\Controllers\PrescriptionPdfController;
 use Filament\Http\Middleware\DisableBladeIconComponents;
 use Filament\Http\Middleware\DispatchServingFilamentEvent;
 use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
@@ -32,6 +46,8 @@ class AdminPanelProvider extends PanelProvider
             ->default()
             ->id('admin')
             ->path('admin')
+            ->homeUrl(fn () => route('filament.admin.pages.calendario'))
+            ->favicon(fn () => asset('images/favicon.png'.'?v=2'))
             ->brandLogo(asset('images/logo-app.png')) 
             ->brandLogoHeight('60px')                   
             ->brandName('Oftalmo-App')
@@ -44,8 +60,8 @@ class AdminPanelProvider extends PanelProvider
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\\Filament\\Resources')
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\\Filament\\Pages')
             ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\\Filament\\Widgets')
+            ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\\Filament\\Widgets')
             ->pages([
-                \App\Filament\Pages\Dashboard::class,
                 \App\Filament\Pages\Clinic\Expedientes::class,
             ])
             ->routes(function () {
@@ -57,6 +73,7 @@ class AdminPanelProvider extends PanelProvider
                         ->name('attachments.download');
 
                     Route::get('/prescriptions/{prescription}/pdf', [PrescriptionPdfController::class, 'show'])
+                         ->middleware(['can:print,prescription'])
                          ->name('prescriptions.pdf');
                 });
             })            
@@ -69,6 +86,7 @@ class AdminPanelProvider extends PanelProvider
                     ->editable()
             )
             ->widgets([
+
 
             ])
             ->middleware([
@@ -84,6 +102,9 @@ class AdminPanelProvider extends PanelProvider
             ])
             ->authMiddleware([
                 Authenticate::class,
+            ])
+            ->renderHook('panels::head.end', fn () => view('filament.custom-styles'));
+
             ])
             ->renderHook('panels::head.end', fn () => view('filament.custom-styles'));
 

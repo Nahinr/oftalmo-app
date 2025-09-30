@@ -90,9 +90,12 @@
                     </div>
                 </div>
                 <div class="flex gap-2">
-                    <x-filament::button size="sm" wire:click="edit({{ $mh->id }})">Editar</x-filament::button>
-                    <x-filament::button color="danger" size="sm" wire:click="delete({{ $mh->id }})">Eliminar
-                    </x-filament::button>
+                    @can('update', $mh)
+                            <x-filament::button size="sm" wire:click="edit({{ $mh->id }})">Editar</x-filament::button>
+                    @endcan
+                        @can('delete', $mh)
+                            <x-filament::button color="danger" size="sm" wire:click="delete({{ $mh->id }})">Eliminar</x-filament::button>
+                        @endcan
                 </div>
             </div>
         </x-filament::section>

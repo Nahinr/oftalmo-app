@@ -11,9 +11,11 @@
     >
         <div class="px-4 py-3 space-y-3">
             {{-- 1) Buscador: SIEMPRE visible --}}
-            <div class="w-full max-w-3xl">
-                <livewire:patient-search :selected="$patient?->id" />
-            </div>
+            @canany(['clinical-background.view', 'history.view', 'prescription.view', 'patient.attachments.view'])
+                <div class="w-full max-w-3xl">
+                    <livewire:patient-search :selected="$patient?->id" />
+                </div>
+            @endcanany
 
             {{-- 2) Mini head + pestañas + acciones: SOLO si hay paciente --}}
             @if ($patient)
@@ -52,7 +54,7 @@
 
                             <div class="space-y-1">
                                 <div class="truncate-ellipsis"><span class="font-semibold">Encargado:</span> {{ $patient->primary_contact_name ?? '—' }}</div>
-                                <div class="truncate-ellipsis"><span class="font-semibold">Tel. encargado:</span> {{ $patient->primary_contact_phone ?? '—' }}</div>
+                                <div class="truncate-ellipsis"><span class="font-semibold">Teléfono Enc:</span> {{ $patient->primary_contact_phone ?? '—' }}</div>
                             </div>
 
                             <div class="space-y-1">
@@ -66,6 +68,8 @@
                 <div class="flex items-center justify-between">
                     <div class="flex items-center gap-1">
                         <x-filament::tabs class="!gap-1 !justify-start w-full">
+
+                            @can('clinical-background.view')
                             <x-filament::tabs.item
                                 :active="$tab === 'antecedentes'"
                                 wire:click="setTab('antecedentes')"
@@ -75,7 +79,9 @@
                                     : '!text-slate-700'">
                                 Antecedentes
                             </x-filament::tabs.item>
+                            @endcan
 
+                            @can('history.view')
                             <x-filament::tabs.item
                                 :active="$tab === 'consultas'"
                                 wire:click="setTab('consultas')"
@@ -85,7 +91,9 @@
                                     : '!text-slate-700'">
                                 Consultas
                             </x-filament::tabs.item>
+                            @endcan
 
+                            @can('prescription.view')
                             <x-filament::tabs.item
                                 :active="$tab === 'recetas'"
                                 wire:click="setTab('recetas')"
@@ -95,7 +103,9 @@
                                     : '!text-slate-700'">
                                 Recetas
                             </x-filament::tabs.item>
+                            @endcan
 
+                            @can('patient.attachments.viewAny')
                             <x-filament::tabs.item
                                 :active="$tab === 'imagenes'"
                                 wire:click="setTab('imagenes')"
@@ -105,38 +115,52 @@
                                     : '!text-slate-700'">
                                 Imágenes
                             </x-filament::tabs.item>
+                            @endcan
+
                         </x-filament::tabs>
+
                     </div>
 
                     <div class="flex items-center gap-2">
                         @if ($tab === 'antecedentes')
+                            @can('clinical-background.update')
                             <x-filament::button
                                 icon="heroicon-o-cloud-arrow-up"
                                 wire:click="$dispatch('save-clinical-background')"
                             >
                                 Guardar cambios
                             </x-filament::button>
+                            @endcan
+
                         @elseif ($tab === 'consultas')
+                            @can('history.create')
                             <x-filament::button
                                 icon="heroicon-o-plus"
                                 wire:click="$dispatch('open-create-consulta')"
                             >
                                 Nueva consulta
                             </x-filament::button>
+                            @endcan
+                            
                         @elseif ($tab === 'recetas')
+                            @can('prescription.create')
                             <x-filament::button
                                 icon="heroicon-o-plus"
                                 wire:click="$dispatch('open-create-prescription')"
                             >
                                 Nueva receta
                             </x-filament::button>
+                            @endcan
+
                         @elseif ($tab === 'imagenes')
+                            @can('patient.attachments.create')
                             <x-filament::button
                                 icon="heroicon-o-plus"
                                 wire:click="$dispatch('open-create-image')"
                             >
                                 Agregar
                             </x-filament::button>
+                            @endcan
                         @endif
                     </div>
                 </div>
@@ -148,13 +172,21 @@
     <div class="mt-4">
         @if ($patient)
             @if ($tab === 'antecedentes')
-                <livewire:clinic.tabs.clinical-background-tab :patientId="$patient->id" />
+                @can('clinical-background.view')
+                    <livewire:clinic.tabs.clinical-background-tab :patientId="$patient->id" />
+                @endcan
             @elseif ($tab === 'consultas')
-                <livewire:clinic.tabs.medical-histories-tab :patientId="$patient->id" />
+                @can('history.view')
+                    <livewire:clinic.tabs.medical-histories-tab :patientId="$patient->id" />
+                @endcan
             @elseif ($tab === 'recetas')
-                <livewire:clinic.tabs.prescriptions-tab :patientId="$patient->id" />
+                @can('prescription.view')
+                    <livewire:clinic.tabs.prescriptions-tab :patientId="$patient->id" />
+                @endcan
             @elseif ($tab === 'imagenes')
-                <livewire:clinic.tabs.images-tab :patientId="$patient->id" />
+                @can('patient.attachments.viewAny')
+                    <livewire:clinic.tabs.images-tab :patientId="$patient->id" />
+                @endcan
             @endif
         @else
             <x-filament::section>

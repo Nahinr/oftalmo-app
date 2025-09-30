@@ -9,7 +9,7 @@ use Mews\Purifier\Facades\Purifier;
 class Prescription extends Model
 {
      protected $fillable = [
-        'patient_id','user_id','medical_history_id','medications_description','diagnosis','issued_at',
+        'patient_id','medical_history_id','medications_description','diagnosis','issued_at',
     ];
 
     protected $casts = ['issued_at' => 'datetime'];
@@ -47,5 +47,14 @@ class Prescription extends Model
     public function getMedicationsHtmlAttribute(): string
     {
         return Purifier::clean($this->medications_description, 'basic');
+    }
+
+    protected static function booted(): void
+    {
+        static::creating(function (self $model) {
+            if (empty($model->user_id)) {
+                $model->user_id = auth()->id();
+            }
+        });
     }
 }

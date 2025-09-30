@@ -11,6 +11,8 @@ class AuthServiceProvider extends ServiceProvider
         // Policies internas (Laravel ya autodetecta User y Patient si siguen convención)
         \App\Models\User::class    => \App\Policies\UserPolicy::class,
         \App\Models\Patient::class => \App\Policies\PatientPolicy::class,
+        \App\Models\MedicalHistory::class => \App\Policies\MedicalHistoryPolicy::class,
+        \App\Models\Prescription::class => \App\Policies\PrescriptionPolicy::class,
         \App\Models\Attachment::class => \App\Policies\AttachmentPolicy::class,
 
         // Policies externas (Spatie)

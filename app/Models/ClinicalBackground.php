@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class ClinicalBackground extends Model
 {
         protected $fillable = [
-        'patient_id','user_id','clinical_history','ocular_meds','systemic_meds','allergies',
+        'patient_id','clinical_history','ocular_meds','systemic_meds','allergies',
         'personal_path_history','trauma_surgical_history',
         'fam_glaucoma','fam_retinal_detachment','fam_cataract','fam_blindness',
         'fam_diabetes','fam_hypertension','fam_thyroid','fam_anemia','fam_other',
@@ -26,6 +26,22 @@ class ClinicalBackground extends Model
 
     public function patient() { return $this->belongsTo(Patient::class); }
 
-    public function user() { return $this->belongsTo(\App\Models\User::class); }
+    public function user() { return $this->belongsTo(\App\Models\User::class, 'user_id'); }
+
+    /** Último editor */
+    public function updatedBy() { return $this->belongsTo(\App\Models\User::class, 'updated_by'); }
+
+    protected static function booted(): void
+    {
+        static::creating(function (self $model) {
+            if (empty($model->user_id)) {
+                $model->user_id = auth()->id();
+            }
+        });
+
+        static::updating(function (self $model) {            
+           $model->updated_by = auth()->id();
+       });
+  }
 
 }

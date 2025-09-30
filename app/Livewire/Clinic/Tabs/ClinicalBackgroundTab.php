@@ -18,13 +18,20 @@ use Filament\Forms\Concerns\InteractsWithForms;
 use Illuminate\Support\Str;
 use Illuminate\Support\HtmlString;
 use Livewire\Attributes\On;
+use App\Livewire\Traits\AuthorizesTab;
 
 class ClinicalBackgroundTab extends Component implements HasForms
 {
-    use InteractsWithForms;
+    use InteractsWithForms, AuthorizesTab;
 
     public int $patientId;
     public ?ClinicalBackground $record = null;
+
+    protected function requiredPermission(): ?string
+    {
+        return 'clinical-background.view';
+    }
+
 
     public ?array $data = [];
 
@@ -37,8 +44,9 @@ class ClinicalBackgroundTab extends Component implements HasForms
     public function mount(int $patientId): void
     {
         $this->patientId = $patientId;
+        $this->authorizeTab();
         $this->record = ClinicalBackground::query()
-            ->with('user')
+            ->with('user', 'updatedBy')
             ->firstWhere('patient_id', $patientId);
 
         $this->data = [];
@@ -51,47 +59,69 @@ class ClinicalBackgroundTab extends Component implements HasForms
     {
         return [
             Section::make('Antecedentes clínicos del paciente')
-                ->description(function () {
-                    if (! $this->record) {
-                        return 'Aún no registrado.';
-                    }
 
-                    // Usuario
-                    $user = $this->record->user?->name
-                        ? trim(($this->record->user->name ?? '') . ' ' . ($this->record->user->last_name ?? ''))
-                        : '—';
+                    // Última actualización (si aplica)
+                    ->description(function () {
+                        if (! $this->record) {
+                            return 'Aún no registrado.';
+                        }
 
-                    // Fecha solo con día en español
-                    $tz    = config('app.timezone', 'America/Tegucigalpa');
-                    $fecha = optional($this->record->created_at)
-                        ?->timezone($tz)
-                        ->locale('es')
-                        ->translatedFormat('l, j \\d\\e F, Y');
-                    if ($fecha) {
-                        $fecha = \Illuminate\Support\Str::ucfirst($fecha);
-                    }
+                        // Creador
+                        $creator = $this->record->user?->display_name ?? '—';
 
-                    // Relativo: "hace 1 año y 2 meses" -> queremos solo "1 año y 2 meses"
-                    $rel = optional($this->record->created_at)
-                        ?->timezone($tz)
-                        ->locale('es')
-                        ->diffForHumans([
-                            'parts' => 2,     // máx 2 partes
-                            'join'  => true,  // usa "y"
-                            'short' => false,
-                        ]);
+                        // Fecha de creación (en español)
+                        $tz    = config('app.timezone', 'America/Tegucigalpa');
+                        $fecha = optional($this->record->created_at)
+                            ?->timezone($tz)
+                            ->locale('es')
+                            ->translatedFormat('l, j \\d\\e F, Y');
+                        if ($fecha) {
+                            $fecha = \Illuminate\Support\Str::ucfirst($fecha);
+                        }
 
-                    $relSolo = $rel ? \Illuminate\Support\Str::replaceFirst('hace ', '', $rel) : null;
+                        // Relativo de creación (ej. "1 año y 2 meses")
+                        $rel = optional($this->record->created_at)
+                            ?->timezone($tz)
+                            ->locale('es')
+                            ->diffForHumans([
+                                'parts' => 2,
+                                'join'  => true,
+                                'short' => false,
+                            ]);
+                        $relSolo = $rel ? \Illuminate\Support\Str::replaceFirst('hace ', '', $rel) : null;
 
-                    // Devolvemos HTML para forzar la segunda línea
-                    return new HtmlString(
-                        "Creado por: {$user} · {$fecha}" .
-                        ($relSolo
-                            ? "<div class='mt-0.5 text-gray-500 text-sm'>Creado hace: {$relSolo}</div>"
-                            : ''
-                        )
-                    );
-                })
+                        // Última actualización (si aplica)
+                        $lastEditorLine = '';
+                        if (
+                            ($this->record->updated_at && $this->record->created_at)
+                            && $this->record->updated_at->gt($this->record->created_at)
+                            && $this->record->updated_by
+                        ) {
+                            $updRel = $this->record->updated_at
+                                ?->timezone($tz)
+                                ->locale('es')
+                                ->diffForHumans([
+                                    'parts' => 2,
+                                    'join'  => true,
+                                    'short' => false,
+                                ]);
+                            $updRelSolo = $updRel ? \Illuminate\Support\Str::replaceFirst('hace ', '', $updRel) : null;
+
+                            $lastEditor = $this->record->updatedBy?->display_name ?? '—';
+                            $lastEditorLine =
+                                "<div class='mt-0.5 text-gray-500 text-sm'>".
+                                "Última actualización por: {$lastEditor}".
+                                ($updRelSolo ? " · {$updRelSolo}" : '').
+                                "</div>";
+                        }
+
+                        // Devolvemos HTML para forzar líneas
+                        return new \Illuminate\Support\HtmlString(
+                            "Creado por: {$creator} · {$fecha}" .
+                            ($relSolo ? "<div class='mt-0.5 text-gray-500 text-sm'>Creado hace: {$relSolo}</div>" : '') .
+                            $lastEditorLine
+                        );
+                    })
                 ->schema([
                     Textarea::make('clinical_history')->label('Historia clínica')
                     ->rows(2)
@@ -342,7 +372,7 @@ class ClinicalBackgroundTab extends Component implements HasForms
                     // Conclusiones                    
                     TextInput::make('clinical_impression')->label('Impresión clínica'),
                     TextInput::make('special_tests')->label('Pruebas especiales'),
-                    TextArea::make('disposition_and_treatment')->label('Disposición y tratamiento')->autosize(),
+                    Textarea::make('disposition_and_treatment')->label('Disposición y tratamiento')->autosize(),
                 ]),
         ];
     }
@@ -356,20 +386,16 @@ class ClinicalBackgroundTab extends Component implements HasForms
     {
         $data = $this->form->getState();
         $data['patient_id'] = $this->patientId;
+        unset($data['user_id'], $data['updated_by']);
 
         if ($this->record) {
 
-            if (empty($this->record->user_id)) {
-            $data['user_id'] = auth()->id();
-            }
-
             $this->record->update($data);
-             $this->record->refresh()->load('user');
+            $this->record->refresh()->load(['user','updatedBy']);
             Notification::make()->title('Antecedentes actualizados')->success()->send();
         } else {
-            $data['user_id'] = auth()->id();
             $this->record = ClinicalBackground::create($data);
-            $this->record->load('user');
+            $this->record->load(['user','updatedBy']);
             Notification::make()->title('Antecedentes creados')->success()->send();
         }
     }
@@ -380,5 +406,8 @@ class ClinicalBackgroundTab extends Component implements HasForms
         $this->save();
     }
 
-    public function render() { return view('livewire.clinic.tabs.clinical-background-tab'); }
+    public function render() {
+        $this->authorizeTab();
+         return view('livewire.clinic.tabs.clinical-background-tab'); 
+        }
 }

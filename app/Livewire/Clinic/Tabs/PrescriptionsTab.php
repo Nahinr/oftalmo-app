@@ -15,18 +15,25 @@ use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
 use Livewire\Attributes\On;
 use Filament\Forms\Components\RichEditor;
+use App\Livewire\Traits\AuthorizesTab;
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 
 use App\Models\Prescription;
 
 class PrescriptionsTab extends Component implements HasForms
 {
-    use InteractsWithForms, WithPagination;
+    use InteractsWithForms, WithPagination, AuthorizesTab, AuthorizesRequests;
 
     public int $patientId;
     public ?Prescription $editing = null;
     public bool $showForm = false;
 
     public ?array $data = [];
+
+    protected function requiredPermission(): ?string
+    {
+        return 'prescription.view';
+    }
 
     protected function getFormStatePath(): string
     {
@@ -36,6 +43,7 @@ class PrescriptionsTab extends Component implements HasForms
     public function mount(int $patientId,): void
     {
         $this->patientId = $patientId;
+        $this->authorizeTab();
     }
 
     protected function getFormSchema(): array
@@ -87,6 +95,7 @@ class PrescriptionsTab extends Component implements HasForms
 
     public function create(): void
     {
+        $this->authorize('create', \App\Models\Prescription::class);
         $this->editing = null;
         $this->data = [];
         $this->form->fill([
@@ -101,6 +110,7 @@ class PrescriptionsTab extends Component implements HasForms
     public function edit(int $id): void
     {
         $this->editing = Prescription::where('patient_id', $this->patientId)->findOrFail($id);
+        $this->authorize('update', $this->editing);
         $this->data = [];
         $this->form->fill($this->editing->toArray());
         $this->showForm = true;
@@ -122,13 +132,17 @@ class PrescriptionsTab extends Component implements HasForms
         ]);
 
         $state['patient_id'] = $this->patientId; // OBLIGATORIO
-        $state['user_id']    = auth()->id();     // médico que crea/edita
+        
 
 
         if ($this->editing) {
+            $this->authorize('update', $this->editing);
+            unset($state['user_id']); 
             $this->editing->update($state);
             Notification::make()->title('Receta actualizada')->success()->send();
         } else {
+            $this->authorize('create', \App\Models\Prescription::class);
+            // unset($state['user_id']); // No permitir asignar user_id desde el form
             $this->editing = Prescription::create($state);
             Notification::make()->title('Receta creada')->success()->send();
         }
@@ -138,12 +152,15 @@ class PrescriptionsTab extends Component implements HasForms
 
     public function delete(int $id): void
     {
-        Prescription::where('patient_id', $this->patientId)->whereKey($id)->delete();
+        $rx = Prescription::where('patient_id', $this->patientId)->findOrFail($id);
+        $this->authorize('delete', $rx);
+        $rx->delete();
         Notification::make()->title('Receta eliminada')->success()->send();
     }
 
     public function render()
     {
+        $this->authorizeTab();
         $items = Prescription::query()
             ->with(['user', 'patient'])
             ->where('patient_id', $this->patientId)
