@@ -15,18 +15,24 @@ use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
 use Livewire\Attributes\On;
 use Filament\Forms\Components\RichEditor;
+use App\Livewire\Traits\AuthorizesTab;
 
 use App\Models\Prescription;
 
 class PrescriptionsTab extends Component implements HasForms
 {
-    use InteractsWithForms, WithPagination;
+    use InteractsWithForms, WithPagination, AuthorizesTab;
 
     public int $patientId;
     public ?Prescription $editing = null;
     public bool $showForm = false;
 
     public ?array $data = [];
+
+    protected function requiredPermission(): ?string
+    {
+        return 'prescription.view';
+    }
 
     protected function getFormStatePath(): string
     {
@@ -36,6 +42,7 @@ class PrescriptionsTab extends Component implements HasForms
     public function mount(int $patientId,): void
     {
         $this->patientId = $patientId;
+        $this->authorizeTab();
     }
 
     protected function getFormSchema(): array
@@ -144,6 +151,7 @@ class PrescriptionsTab extends Component implements HasForms
 
     public function render()
     {
+        $this->authorizeTab();
         $items = Prescription::query()
             ->with(['user', 'patient'])
             ->where('patient_id', $this->patientId)

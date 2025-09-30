@@ -13,22 +13,26 @@ use Filament\Forms\Components\Textarea;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
-
 use App\Models\Attachment;
 use App\Models\AttachmentBatch;
+use App\Livewire\Traits\AuthorizesTab;
 
 class ImagesTab extends Component implements HasForms
 {
-    use InteractsWithForms, WithPagination;
+    use InteractsWithForms, WithPagination, AuthorizesTab;
 
     public int $patientId;
-
     /** Modal de subida (usaremos Filament Form) */
     public bool $showUploader = false;
     public bool $showEdit = false;
     public ?int $editBatchId = null;
     public ?string $editDescription = null;
     public ?array $editData = ['description' => null, 'files' => []];
+
+    protected function requiredPermission(): ?string
+    {
+        return 'patient.attachments.view';
+    }
 
     /** Estado del form de Filament */
     public ?array $data = [
@@ -46,9 +50,9 @@ class ImagesTab extends Component implements HasForms
     ];
 
     public function mount(int $patientId): void
-    {
+    {   
         $this->patientId = $patientId;
-        abort_unless(auth()->user()?->can('patient.attachments.viewAny'), 403);
+        $this->authorizeTab();
 
         // Inicializa el form
         $this->form->fill($this->data);
@@ -204,6 +208,7 @@ class ImagesTab extends Component implements HasForms
 
     public function render()
     {
+        $this->authorizeTab();
         return view('livewire.clinic.tabs.images-tab', [
             'batches' => $this->batches,
             'currentBatch' => $this->currentBatch,

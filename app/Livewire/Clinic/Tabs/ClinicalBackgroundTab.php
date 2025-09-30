@@ -18,13 +18,20 @@ use Filament\Forms\Concerns\InteractsWithForms;
 use Illuminate\Support\Str;
 use Illuminate\Support\HtmlString;
 use Livewire\Attributes\On;
+use App\Livewire\Traits\AuthorizesTab;
 
 class ClinicalBackgroundTab extends Component implements HasForms
 {
-    use InteractsWithForms;
+    use InteractsWithForms, AuthorizesTab;
 
     public int $patientId;
     public ?ClinicalBackground $record = null;
+
+    protected function requiredPermission(): ?string
+    {
+        return 'clinical-background.view';
+    }
+
 
     public ?array $data = [];
 
@@ -37,6 +44,7 @@ class ClinicalBackgroundTab extends Component implements HasForms
     public function mount(int $patientId): void
     {
         $this->patientId = $patientId;
+        $this->authorizeTab();
         $this->record = ClinicalBackground::query()
             ->with('user')
             ->firstWhere('patient_id', $patientId);
@@ -342,7 +350,7 @@ class ClinicalBackgroundTab extends Component implements HasForms
                     // Conclusiones                    
                     TextInput::make('clinical_impression')->label('Impresión clínica'),
                     TextInput::make('special_tests')->label('Pruebas especiales'),
-                    TextArea::make('disposition_and_treatment')->label('Disposición y tratamiento')->autosize(),
+                    Textarea::make('disposition_and_treatment')->label('Disposición y tratamiento')->autosize(),
                 ]),
         ];
     }
@@ -380,5 +388,8 @@ class ClinicalBackgroundTab extends Component implements HasForms
         $this->save();
     }
 
-    public function render() { return view('livewire.clinic.tabs.clinical-background-tab'); }
+    public function render() {
+        $this->authorizeTab();
+         return view('livewire.clinic.tabs.clinical-background-tab'); 
+        }
 }

@@ -16,17 +16,24 @@ use Filament\Notifications\Notification;
 use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Concerns\InteractsWithForms;
 use Livewire\Attributes\On;
+use App\Livewire\Traits\AuthorizesTab;
+
 
 
 class MedicalHistoriesTab extends Component implements HasForms
 {
-    use InteractsWithForms, WithPagination;
+    use InteractsWithForms, WithPagination, AuthorizesTab;
 
     public int $patientId;
     public ?MedicalHistory $editing = null;
     public bool $showForm = false;
 
     public ?array $data = [];
+
+    protected function requiredPermission(): ?string
+    {
+        return 'history.view';
+    }
 
     protected function getFormStatePath(): string
     {
@@ -36,6 +43,7 @@ class MedicalHistoriesTab extends Component implements HasForms
     public function mount(int $patientId): void
     {
         $this->patientId = $patientId;
+        $this->authorizeTab();
     }
 
     protected function getFormSchema(): array
@@ -128,6 +136,7 @@ class MedicalHistoriesTab extends Component implements HasForms
 
     public function render()
     {
+        $this->authorizeTab();
         $items = MedicalHistory::query()
             ->with('user')
             ->where('patient_id', $this->patientId)
