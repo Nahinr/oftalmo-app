@@ -32,6 +32,8 @@ class AdminPanelProvider extends PanelProvider
             ->default()
             ->id('admin')
             ->path('admin')
+            ->homeUrl(fn () => route('filament.admin.pages.calendario'))
+            ->favicon(fn () => asset('images/favicon.png'.'?v=2'))
             ->brandLogo(asset('images/logo-app.png')) 
             ->brandLogoHeight('60px')                   
             ->brandName('Oftalmo-App')
@@ -45,7 +47,6 @@ class AdminPanelProvider extends PanelProvider
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\\Filament\\Pages')
             ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\\Filament\\Widgets')
             ->pages([
-                \App\Filament\Pages\Dashboard::class,
                 \App\Filament\Pages\Clinic\Expedientes::class,
             ])
             ->routes(function () {
