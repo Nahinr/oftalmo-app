@@ -54,7 +54,7 @@
 
                             <div class="space-y-1">
                                 <div class="truncate-ellipsis"><span class="font-semibold">Encargado:</span> {{ $patient->primary_contact_name ?? '—' }}</div>
-                                <div class="truncate-ellipsis"><span class="font-semibold">Tel. encargado:</span> {{ $patient->primary_contact_phone ?? '—' }}</div>
+                                <div class="truncate-ellipsis"><span class="font-semibold">Teléfono Enc:</span> {{ $patient->primary_contact_phone ?? '—' }}</div>
                             </div>
 
                             <div class="space-y-1">

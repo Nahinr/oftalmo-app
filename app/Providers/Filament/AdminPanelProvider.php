@@ -57,6 +57,7 @@ class AdminPanelProvider extends PanelProvider
                         ->name('attachments.download');
 
                     Route::get('/prescriptions/{prescription}/pdf', [PrescriptionPdfController::class, 'show'])
+                         ->middleware(['can:print,prescription'])
                          ->name('prescriptions.pdf');
                 });
             })            
